@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biblia API.Bible</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body.dark-mode {
+            background-color: #333;
+            color: #fff;
+        }
+
+        body.dark-mode .navbar {
+            background-color: #222 !important;
+        }
+
+        body.dark-mode .navbar-light .navbar-brand,
+        body.dark-mode .navbar-light .nav-link {
+            color: #fff;
+        }
+
+        body.dark-mode .form-select,
+        body.dark-mode .form-control {
+            background-color: #444;
+            color: #fff;
+            border-color: #555;
+        }
+
+        #loadingIndicator {
+            display: none;
+        }
+
+        #bibleContent {
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        #bibleContent p {
+            margin-bottom: 1em;
+        }
+
+        .verse-container {
+    display: inline-flex;
+    align-items: baseline;
+    margin-right: 5px;
+}
+
+.verse-number {
+    font-weight: bold;
+    font-size: 0.8em;
+    color: #007bff;
+    margin-right: 0.3em;
+}
+
+.verse-text {
+    margin-right: 3px;
+}
+
+.bookmark-button {
+    font-size: 0.7em;
+    padding: 1px 3px;
+    margin-left: 3px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+        body.dark-mode .verse-number {
+            color: #17a2b8;
+        }
+
+        #verseSelect {
+            color: #000;
+            background-color: #fff;
+        }
+
+        body.dark-mode #verseSelect {
+            color: #fff;
+            background-color: #444;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .verse-number {
+                font-size: 0.7em;
+            }
+        }
+
+       
+        /* Estilos para el modo de lectura sin distracciones */
+    body.distraction-free #navbarNav .nav-item:not(:first-child):not(:nth-child(2)),
+    body.distraction-free #searchForm,
+    body.distraction-free .container > .row:first-child {
+        display: none;
+    }
+
+    body.distraction-free #bibleContent {
+        margin-top: 2rem;
+    }
+
+    /* Asegurarse de que el botón de menú y el enlace de modo sin distracciones siempre sean visibles */
+    body.distraction-free .navbar-toggler,
+    body.distraction-free #toggleDistractionsMode {
+        display: block !important;
+    }
+
+    /* Ajustar el margen superior del contenido en modo sin distracciones para dispositivos móviles */
+    @media (max-width: 768px) {
+        body.distraction-free #bibleContent {
+            margin-top: 4rem;
+        }
+    }
+
+
+        #errorContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+
+
+
+
+
+.verse-content button {
+    font-size: 0.7em;  /* Reducido de 0.8em a 0.7em */
+    padding: 1px 3px;  /* Reducido de 2px 5px a 1px 3px */
+    margin-left: 3px;  /* Reducido de 5px a 3px */
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    vertical-align: super;  /* Añadido para alinear mejor con el texto */
+}
+
+.verse-content button:hover {
+    background-color: #e0e0e0;
+}
+
+body.dark-mode .verse-content button {
+    background-color: #444;
+    border-color: #555;
+    color: #fff;
+}
+
+body.dark-mode .verse-content button:hover {
+    background-color: #555;
+}
+
+.bookmark-item {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.bookmark-item p {
+    margin-bottom: 5px;
+}
+
+body.dark-mode .bookmark-item {
+    border-color: #555;
+}
+
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Biblia API.Bible</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="toggleDarkMode">
+                            <i class="fas fa-moon"></i> Modo Oscuro
+                        </a>
+                    </li>
+                    <li class="nav-item">
+    <a class="nav-link" href="#" id="toggleDistractionsMode">
+        <i class="fas fa-eye-slash"></i> <span class="distraction-mode-text">Modo sin distracciones</span>
+    </a>
+</li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="bookmarksLink">
+                            <i class="fas fa-bookmark"></i> Marcadores
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="historyLink">
+                            <i class="fas fa-history"></i> Historial
+                        </a>
+                    </li>
+                </ul>
+                <form class="d-flex" id="searchForm">
+                    <input class="form-control me-2" type="search" placeholder="Buscar en la Biblia..." id="searchInput">
+                    <button class="btn btn-outline-success" type="submit" id="searchButton">Buscar</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <select id="bibleSelect" class="form-select">
+                    <option selected>Selecciona una Biblia</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <select id="bookSelect" class="form-select">
+                    <option selected>Selecciona un libro</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <select id="chapterSelect" class="form-select">
+                    <option selected>Selecciona un capítulo</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <select id="verseSelect" class="form-select">
+                    <option selected>Selecciona un versículo</option>
+
+                    </select>
+            </div>
+        </div>
+        <div id="loadingIndicator" class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+        <div id="bibleContent" class="mt-4">
+            <!-- El contenido de la Biblia se mostrará aquí -->
+        </div>
+    </div>
+
+    <div id="errorContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+       // Funciones globales para marcadores e historial
+function addBookmark(bibleId, bookId, chapterId, verseId, text) {
+    const bookmark = {
+        bibleId,
+        bookId,
+        chapterId,
+        verseId,
+        text,
+        timestamp: new Date().toISOString()
+    };
+    bookmarks.push(bookmark);
+    localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+}
+
+function removeBookmark(index) {
+    bookmarks.splice(index, 1);
+    localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+    showBookmarks(); // Actualiza la vista de marcadores después de eliminar uno
+}
+
+function showBookmarks() {
+    const bibleContent = document.getElementById('bibleContent');
+    if (!bibleContent) {
+        console.error('Elemento bibleContent no encontrado');
+        return;
+    }
+    let bookmarksHtml = '<h2>Marcadores</h2>';
+    if (bookmarks.length === 0) {
+        bookmarksHtml += '<p>No tienes marcadores guardados.</p>';
+    } else {
+        bookmarks.forEach((bookmark, index) => {
+            // Añadimos console.log para debug
+            console.log("Mostrando bookmark:", bookmark);
+            
+            const bookName = getBookName(bookmark.bookId);
+            const chapter = bookmark.chapterId.split('.')[1];
+            bookmarksHtml += `
+                <div class="bookmark-item">
+                    <p>${bookName} ${chapter}:${bookmark.verseId} ${bookmark.text || ''}}</p>
+                    <button onclick="removeBookmark(${index})" class="btn btn-sm btn-danger">Eliminar</button>
+                </div>
+            `;
+        });
+    }
+    bibleContent.innerHTML = bookmarksHtml;
+}
+
+// Función para obtener el nombre completo del libro
+function getBookName(bookId) {
+    const bookNames = {
+        'GEN': 'Génesis',
+        'EXO': 'Éxodo',
+        'LEV': 'Levítico',
+        'NUM': 'Números',
+        'DEU': 'Deuteronomio',
+        'JOS': 'Josué',
+        'JDG': 'Jueces',
+        'RUT': 'Rut',
+        '1SA': '1 Samuel',
+        '2SA': '2 Samuel',
+        '1KI': '1 Reyes',
+        '2KI': '2 Reyes',
+        '1CH': '1 Crónicas',
+        '2CH': '2 Crónicas',
+        'EZR': 'Esdras',
+        'NEH': 'Nehemías',
+        'EST': 'Ester',
+        'JOB': 'Job',
+        'PSA': 'Salmos',
+        'PRO': 'Proverbios',
+        'ECC': 'Eclesiastés',
+        'SNG': 'Cantares',
+        'ISA': 'Isaías',
+        'JER': 'Jeremías',
+        'LAM': 'Lamentaciones',
+        'EZK': 'Ezequiel',
+        'DAN': 'Daniel',
+        'HOS': 'Oseas',
+        'JOL': 'Joel',
+        'AMO': 'Amós',
+        'OBA': 'Abdías',
+        'JON': 'Jonás',
+        'MIC': 'Miqueas',
+        'NAM': 'Nahúm',
+        'HAB': 'Habacuc',
+        'ZEP': 'Sofonías',
+        'HAG': 'Hageo',
+        'ZEC': 'Zacarías',
+        'MAL': 'Malaquías',
+        'MAT': 'Mateo',
+        'MRK': 'Marcos',
+        'LUK': 'Lucas',
+        'JHN': 'Juan',
+        'ACT': 'Hechos',
+        'ROM': 'Romanos',
+        '1CO': '1 Corintios',
+        '2CO': '2 Corintios',
+        'GAL': 'Gálatas',
+        'EPH': 'Efesios',
+        'PHP': 'Filipenses',
+        'COL': 'Colosenses',
+        '1TH': '1 Tesalonicenses',
+        '2TH': '2 Tesalonicenses',
+        '1TI': '1 Timoteo',
+        '2TI': '2 Timoteo',
+        'TIT': 'Tito',
+        'PHM': 'Filemón',
+        'HEB': 'Hebreos',
+        'JAS': 'Santiago',
+        '1PE': '1 Pedro',
+        '2PE': '2 Pedro',
+        '1JN': '1 Juan',
+        '2JN': '2 Juan',
+        '3JN': '3 Juan',
+        'JUD': 'Judas',
+        'REV': 'Apocalipsis'
+    };
+    return bookNames[bookId] || bookId;
+}
+
+function showReadingHistory() {
+    let historyHtml = '<h2>Historial de lectura</h2>';
+    readingHistory.forEach((entry, index) => {
+        historyHtml += `<p>${entry.bookId} ${entry.chapterId}:${entry.verseId} - ${new Date(entry.timestamp).toLocaleString()}</p>`;
+    });
+    bibleContent.innerHTML = historyHtml;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const bibleSelect = document.getElementById('bibleSelect');
+    const bookSelect = document.getElementById('bookSelect');
+    const chapterSelect = document.getElementById('chapterSelect');
+    const verseSelect = document.getElementById('verseSelect');
+    const bibleContent = document.getElementById('bibleContent');
+    const toggleDarkMode = document.getElementById('toggleDarkMode');
+    const toggleDistractionsMode = document.getElementById('toggleDistractionsMode');
+    const distractionModeText = document.querySelector('.distraction-mode-text');
+    const bookmarksLink = document.getElementById('bookmarksLink');
+    const historyLink = document.getElementById('historyLink');
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+    const errorContainer = document.getElementById('errorContainer');
+
+    const API_KEY = 'e8b84366781aa4a549602db2c4969266';
+    const API_BASE_URL = 'https://api.scripture.api.bible/v1';
+
+    let readingHistory = [];
+    let bookmarks = [];
+
+    function showLoading() {
+        document.getElementById('loadingIndicator').style.display = 'block';
+    }
+
+    function hideLoading() {
+        document.getElementById('loadingIndicator').style.display = 'none';
+    }
+
+    async function fetchWithTimeout(endpoint, options = {}, timeout = 10000) {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        
+        const defaultOptions = {
+            headers: {
+                'api-key': API_KEY,
+                'Accept': 'application/json'
+            }
+        };
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                ...defaultOptions,
+                ...options,
+                signal: controller.signal
+            });
+            clearTimeout(id);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            clearTimeout(id);
+            throw error;
+        }
+    }
+
+    async function loadBibles() {
+        try {
+            showLoading();
+            const data = await fetchWithTimeout('/bibles');
+            const spanishBibles = data.data.filter(bible => 
+                bible.language.id === 'spa' || 
+                bible.language.name.toLowerCase().includes('spanish') ||
+                bible.name.toLowerCase().includes('español')
+            );
+            spanishBibles.forEach(bible => {
+                const option = document.createElement('option');
+                option.textContent = bible.name;
+                option.value = bible.id;
+                bibleSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error al cargar las Biblias:', error);
+            showError('Error al cargar las Biblias: ' + error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    async function loadBooks(bibleId) {
+        try {
+            showLoading();
+            const cacheKey = `books_${bibleId}`;
+            const cachedData = getCacheItem(cacheKey);
+            
+            if (cachedData) {
+                updateBookSelect(cachedData);
+            } else {
+                const data = await fetchWithTimeout(`/bibles/${bibleId}/books`);
+                setCacheItem(cacheKey, data.data);
+                updateBookSelect(data.data);
+            }
+        } catch (error) {
+            console.error('Error al cargar los libros:', error);
+            showError('Error al cargar los libros: ' + error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    function updateBookSelect(books) {
+        bookSelect.innerHTML = '<option selected>Selecciona un libro</option>';
+        books.forEach(book => {
+            const option = document.createElement('option');
+            option.textContent = book.name;
+            option.value = book.id;
+            bookSelect.appendChild(option);
+        });
+    }
+
+    async function loadChapters(bibleId, bookId) {
+        try {
+            showLoading();
+            const data = await fetchWithTimeout(`/bibles/${bibleId}/books/${bookId}/chapters`);
+            chapterSelect.innerHTML = '<option selected>Selecciona un capítulo</option>';
+            data.data.forEach(chapter => {
+                const option = document.createElement('option');
+                option.textContent = chapter.number;
+                option.value = chapter.id;
+                chapterSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error al cargar los capítulos:', error);
+            showError('Error al cargar los capítulos: ' + error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    async function loadVerses(bibleId, chapterId) {
+        try {
+            showLoading();
+            const data = await fetchWithTimeout(`/bibles/${bibleId}/chapters/${chapterId}/verses`);
+            verseSelect.innerHTML = '<option selected>Selecciona un versículo</option>';
+            data.data.forEach(verse => {
+                const option = document.createElement('option');
+                option.textContent = verse.reference;
+                option.value = verse.id;
+                verseSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error al cargar los versículos:', error);
+            showError('Error al cargar los versículos: ' + error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    async function loadChapterContent(bibleId, chapterId) {
+        try {
+            showLoading();
+            const data = await fetchWithTimeout(`/bibles/${bibleId}/chapters/${chapterId}?content-type=json`);
+            const content = data.data.content;
+            bibleContent.innerHTML = formatContent(content);
+            bibleContent.classList.add('fade-in');
+            setTimeout(() => bibleContent.classList.remove('fade-in'), 500);
+            
+            // Actualizar el historial de lectura
+            updateReadingHistory(bibleId, bookSelect.value, chapterId, null);
+        } catch (error) {
+            console.error('Error al cargar el contenido del capítulo:', error);
+            showError('Error al cargar el contenido del capítulo: ' + error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    async function loadVerseContent(bibleId, verseId) {
+        try {
+            showLoading();
+            const data = await fetchWithTimeout(`/bibles/${bibleId}/verses/${verseId}?content-type=json`);
+            const content = data.data.content;
+            bibleContent.innerHTML = formatContent([{ name: 'para', items: [data.data] }]);
+            bibleContent.classList.add('fade-in');
+            setTimeout(() => bibleContent.classList.remove('fade-in'), 500);
+            
+            // Actualizar el historial de lectura
+            updateReadingHistory(bibleId, bookSelect.value, chapterSelect.value, verseId);
+        } catch (error) {
+            console.error('Error al cargar el versículo:', error);
+            showError('Error al cargar el versículo: ' + error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    function formatContent(content) {
+        if (!Array.isArray(content)) {
+            console.error('Content is not an array:', content);
+            return '';
+        }
+        
+        let formattedContent = '';
+        content.forEach(paragraph => {
+            if (paragraph.name === 'para') {
+                formattedContent += '<p>';
+                paragraph.items.forEach(item => {
+                  if (item.name === 'verse') {
+    const verseText = item.items[0].text.replace(/^\d+\s*/, '');
+    formattedContent += `
+        <span class="verse-content">
+            <span class="verse-number">${item.attrs.number}</span>
+            ${verseText}
+            <button onclick="addBookmark('${bibleSelect.value}', '${bookSelect.value}', '${chapterSelect.value}', '${item.attrs.number}', '${verseText}')" title="Añadir marcador">+</button>
+        </span> `;
+
+
+
+
+                    } else if (item.text) {
+                        formattedContent += item.text;
+                    }
+                });
+                formattedContent += '</p>';
+            }
+        });
+        return formattedContent;
+    }
+
+    function setCacheItem(key, value, expirationInMinutes = 60) {
+        const now = new Date();
+        const item = {
+            value: value,
+            expiration: now.getTime() + expirationInMinutes * 60000
+        };
+        localStorage.setItem(key, JSON.stringify(item));
+    }
+
+    function getCacheItem(key) {
+        const itemStr = localStorage.getItem(key);
+        if (!itemStr) {
+            return null;
+        }
+        const item = JSON.parse(itemStr);
+        const now = new Date();
+        if (now.getTime() > item.expiration) {
+            localStorage.removeItem(key);
+            return null;
+        }
+        return item.value;
+    }
+
+    async function searchBible(bibleId, query) {
+        try {
+            showLoading();
+            const data = await fetchWithTimeout(`/bibles/${bibleId}/search?query=${encodeURIComponent(query)}`);
+            let results = '<h2>Resultados de la búsqueda:</h2>';
+            data.data.verses.forEach(verse => {
+                results += `<p><strong>${verse.reference}</strong>: ${verse.text}</p>`;
+            });
+            bibleContent.innerHTML = results;
+        } catch (error) {
+            console.error('Error en la búsqueda:', error);
+            showError('Error en la búsqueda: ' + error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    function showError(message) {
+        console.error(message);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger';
+        errorDiv.textContent = message;
+        errorContainer.appendChild(errorDiv);
+        setTimeout(() => errorDiv.remove(), 5000);
+    }
+
+    function updateReadingHistory(bibleId, bookId, chapterId, verseId) {
+        const entry = {
+            bibleId,
+            bookId,
+            chapterId,
+            verseId,
+            timestamp: new Date().toISOString()
+        };
+        readingHistory.unshift(entry);
+        if (readingHistory.length > 10) {
+            readingHistory.pop();
+        }
+        localStorage.setItem('readingHistory', JSON.stringify(readingHistory));
+    }
+
+    function loadReadingHistory() {
+        const storedHistory = localStorage.getItem('readingHistory');
+        if (storedHistory) {
+            readingHistory = JSON.parse(storedHistory);
+        }
+    }
+
+    function loadBookmarks() {
+        const storedBookmarks = localStorage.getItem('bookmarks');
+        if (storedBookmarks) {
+            bookmarks = JSON.parse(storedBookmarks);
+        }
+    }
+
+    bibleSelect.addEventListener('change', function() {
+        if (this.value !== 'Selecciona una Biblia') {
+            loadBooks(this.value);
+        }
+    });
+
+    bookSelect.addEventListener('change', function() {
+        if (this.value !== 'Selecciona un libro') {
+            const bibleId = bibleSelect.value;
+            loadChapters(bibleId, this.value);
+        }
+    });
+
+    chapterSelect.addEventListener('change', function() {
+        if (this.value !== 'Selecciona un capítulo') {
+            const bibleId = bibleSelect.value;
+            loadVerses(bibleId, this.value);
+            loadChapterContent(bibleId, this.value);
+        }
+    });
+
+    verseSelect.addEventListener('change', function() {
+        if (this.value !== 'Selecciona un versículo') {
+            const bibleId = bibleSelect.value;
+            loadVerseContent(bibleId, this.value);
+        }
+    });
+
+    searchButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        const bibleId = bibleSelect.value;
+        const query = searchInput.value;
+        if (bibleId !== 'Selecciona una Biblia' && query) {
+            searchBible(bibleId, query);
+        } else {
+            showError('Por favor, selecciona una Biblia y escribe un término de búsqueda.');
+        }
+    });
+
+    toggleDarkMode.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.body.classList.toggle('dark-mode');
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-moon');
+        icon.classList.toggle('fa-sun');
+    });
+
+    toggleDistractionsMode.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.body.classList.toggle('distraction-free');
+        
+        if (document.body.classList.contains('distraction-free')) {
+            distractionModeText.textContent = 'Modo normal';
+        } else {
+            distractionModeText.textContent = 'Modo sin distracciones';
+        }
+
+        // Si el menú está expandido en móvil, ciérralo
+        const navbarCollapse = document.querySelector('.navbar-collapse');
+        if (navbarCollapse.classList.contains('show')) {
+            document.querySelector('.navbar-toggler').click();
+        }
+    });
+
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768 && document.body.classList.contains('distraction-free')) {
+            document.body.classList.remove('distraction-free');
+            distractionModeText.textContent = 'Modo sin distracciones';
+        }
+    });
+
+    bookmarksLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        showBookmarks();
+    });
+
+        historyLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        showReadingHistory();
+    });
+
+    document.getElementById('searchForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const bibleId = bibleSelect.value;
+        const query = searchInput.value;
+        if (bibleId !== 'Selecciona una Biblia' && query) {
+            searchBible(bibleId, query);
+        } else {
+            showError('Por favor, selecciona una Biblia y escribe un término de búsqueda.');
+        }
+    });
+
+    // Cargar el historial y los marcadores al inicio
+    loadReadingHistory();
+    loadBookmarks();
+
+    // Iniciar la carga de las Biblias
+    loadBibles();
+});
+
+// Asegúrate de que estas funciones estén fuera del evento DOMContentLoaded
+// para que sean accesibles globalmente
+function addBookmark(bibleId, bookId, chapterId, verseId, text) {
+    // Añadimos console.log para debug
+    console.log("Texto recibido:", text);
+    
+    const bookmark = {
+        bibleId,
+        bookId,
+        chapterId,
+        verseId,
+        text: text.trim(), // Aseguramos que el texto esté limpio
+        timestamp: new Date().toISOString()
+    };
+    console.log("Bookmark a guardar:", bookmark);
+    
+    bookmarks.push(bookmark);
+    localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+    showError('Marcador añadido');
+}
+
+
+function removeBookmark(index) {
+    bookmarks.splice(index, 1);
+    localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+    showBookmarks(); // Actualiza la vista de marcadores después de eliminar uno
+}
+
+// Estas variables deben ser declaradas en el ámbito global
+let bookmarks = [];
+let readingHistory = [];
+let bibleContent; // Asegúrate de que esta variable esté definida correctamente
+
+// Asegúrate de que esta función esté definida en el ámbito global
+function showError(message) {
+    console.log(message); // Para depuración
+    const errorContainer = document.getElementById('errorContainer');
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'alert alert-info';
+    errorDiv.textContent = message;
+    errorContainer.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 3000);
+}
+
+    </script>
+</body>
+</html> 
